@@ -13,6 +13,8 @@ public section.
         mandt  TYPE  mandt,
         syst   TYPE  sysysid,
       END OF ty_s_conn .
+  types:
+    ty_t_conn_log TYPE TABLE OF zbcdbcoconn_tabs .
 
   data V_CONN type TY_S_CONN .
 
@@ -146,10 +148,14 @@ public section.
       value(IT_FIELDS) type FIELDNAME_TAB optional
       value(IP_DDIC_STRUCTURE) type STRUKNAME optional
     returning
-      value(OR_DATA) type ref to DATA .
+      value(OR_DATA) type ref to DATA
+    RAISING zcx_srqlquery.
   methods GET_MESSAGES
     returning
       value(RT_MESSAGES) type BAPIRET2_TAB .
+  class-methods ADD_CONN_TAB
+    importing
+      value(IS_CONN_DB) type ZBCDBCOCONN_TABS .
 protected section.
 private section.
 
@@ -160,6 +166,7 @@ private section.
   data T_CONN_BAPIRET2 type BAPIRET2_TAB .
   data O_SQL type ref to ZCL_GA_SQL .
   data O_LOGGER type ref to ZCL_ALOG_MSG_LOGGER_BASE .
+  class-data T_CONN_LOG type TY_T_CONN_LOG .
 
   methods ADD_LOG
     importing
@@ -186,6 +193,24 @@ ENDCLASS.
 
 
 CLASS ZCL_CONN_R3_HR IMPLEMENTATION.
+
+
+  METHOD add_conn_tab.
+    IF NOT line_exists( t_conn_log[
+    tabname = is_conn_db-tabname
+    systori = is_conn_db-systori
+    mandtori = is_conn_db-mandtori
+    systdes = is_conn_db-systdes
+    mandtdes = is_conn_db-mandtdes
+    report = is_conn_db-report
+    tcode = is_conn_db-tcode
+    tech   = is_conn_db-tech
+    modo = is_conn_db-modo
+    ] ).
+      MODIFY zbcdbcoconn_tabs FROM is_conn_db.
+      APPEND is_conn_db TO t_conn_log.
+    ENDIF.
+  ENDMETHOD.
 
 
   METHOD add_field_2_selection.
@@ -230,7 +255,10 @@ CLASS ZCL_CONN_R3_HR IMPLEMENTATION.
     ls_conn-tcode = v_tcode.
     ls_conn-tech  = ip_tech.
     ls_conn-modo  = ip_modo.
-    MODIFY zbcdbcoconn_tabs FROM ls_conn.
+    add_conn_tab( ls_conn ).
+
+
+
   ENDMETHOD.
 
 
@@ -375,6 +403,8 @@ CLASS ZCL_CONN_R3_HR IMPLEMENTATION.
           v_conn_2_r3-schema = 'ssi'.
       ENDCASE.
     ENDIF.
+    SELECT * INTO TABLE t_conn_log
+      FROM zbcdbcoconn_tabs.
   ENDMETHOD.
 
 
